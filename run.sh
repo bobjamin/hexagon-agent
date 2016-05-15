@@ -4,21 +4,20 @@ echo Parsing Configuration
 eval $(parse_yaml /config/config.yml "config_")
 echo Configuration Parsed
 
-if [ -z "$config_build" ]; then
-  echo No build number found! Please add a build entry into the config.yml file.
+if [ -z "$BUILD" ]; then
+  echo No build number found! Please set the BUILD environment vairable.
   exit 1
 fi
-echo Build $config_build found
-echo Checking agent is configured with correct name for build
-agentcontainerid=$(eval docker ps -q -f name=agent-build$config_build)
-AGENTNAME='agent-build'$config_build
+echo Build $BUILD found
+echo Searching for self
+AGENTID=$(cat /etc/hosts | grep $(ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}') | awk '{ print $2}')
 
-if [ -z "$agentcontainerid" ]; then
-  echo Container is not named correctly. Name the container $AGENTNAME
+if [ -z "$AGENTID" ]; then
+  echo Container could not be found.
   exit 1
 fi
 
-echo Found self as container id $agentcontainerid and with the name $AGENTNAME
+echo Found self as container id $AGENTID
 
 run_task(){
   XTASK=config_tasks_task$1
@@ -49,9 +48,7 @@ run_task(){
 
    variable=`expr $variable + 1`
    done
-   echo "$VARCOMMAND"
-   echo Running $TASKNAME
-   eval $(echo docker run --volumes-from $AGENTNAME"$VARCOMMAND" $TASKNAME)
+   eval $(echo docker run --rm --volumes-from $AGENTID"$VARCOMMAND" $TASKNAME)
 }
 
 echo Number of tasks to run: $config_tasks_taskcount
